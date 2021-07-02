@@ -876,16 +876,17 @@ openrc_start() {
 runit_enable() {
     info "runit: Enabling ${SYSTEM_NAME} service"
     $SUDO ln -sf ${FILE_K3S_SERVICE} /var/service >/dev/null
+
+    # Wait until service is started
+    until test -s /var/service/${SYSTEM_NAME}/supervise/pid;
+    do
+      continue
+    done
 }
 
 runit_start() {
     info "runit: Starting ${SYSTEM_NAME}"
-    local try=0
-    until $SUDO sv restart ${SYSTEM_NAME} > /dev/null;do
-      try=$(expr $try + 1)
-      [ "$try" -gt 5 ] && exit 1
-      sleep 3
-    done
+    $SUDO sv restart ${SYSTEM_NAME} >/dev/null
 }
 
 # --- startup systemd or openrc service ---
