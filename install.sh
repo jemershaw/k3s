@@ -120,7 +120,11 @@ verify_system() {
         HAS_SYSTEMD=true
         return
     fi
-    fatal 'Can not find systemd or openrc to use as a process supervisor for k3s'
+    if [ -d /run/runit/runsvdir ]; then
+        HAS_RUNIT=true
+        return
+    fi
+    fatal 'Can not find systemd, openrc or runit to use as a process supervisor for k3s'
 }
 
 # --- add quotes to command arguments ---
@@ -256,6 +260,10 @@ setup_env() {
     elif [ "${HAS_OPENRC}" = true ]; then
         $SUDO mkdir -p /etc/rancher/k3s
         FILE_K3S_SERVICE=/etc/init.d/${SYSTEM_NAME}
+        FILE_K3S_ENV=/etc/rancher/k3s/${SYSTEM_NAME}.env
+    elif [ "${HAS_RUNIT}" = true ]; then
+        $SUDO mkdir -p /etc/rancher/k3s
+        FILE_K3S_SERVICE=/etc/sv/${SYSTEM_NAME}
         FILE_K3S_ENV=/etc/rancher/k3s/${SYSTEM_NAME}.env
     fi
 
@@ -442,7 +450,7 @@ setup_binary() {
 
 # --- setup selinux policy ---
 setup_selinux() {
-    case ${INSTALL_K3S_CHANNEL} in 
+    case ${INSTALL_K3S_CHANNEL} in
         *testing)
             rpm_channel=testing
             ;;
@@ -586,6 +594,10 @@ for service in /etc/init.d/k3s*; do
     [ -x $service ] && $service stop
 done
 
+for service in /var/service/k3s*; do
+    [ -s $service ] && sv stop $(basename $service)
+done
+
 pschildren() {
     ps -e -o ppid= -o pid= | \
     sed -e 's/^\s*//g; s/\s\s*/\t/g;' | \
@@ -663,8 +675,13 @@ if command -v rc-update; then
     rc-update delete ${SYSTEM_NAME} default
 fi
 
-rm -f ${FILE_K3S_SERVICE}
-rm -f ${FILE_K3S_ENV}
+if command -v sv; then
+    sv stop ${SYSTEM_NAME}
+    rm -rf /var/service/${SYSTEM_NAME}
+fi
+
+rm -rf ${FILE_K3S_SERVICE}
+rm -rf ${FILE_K3S_ENV}
 
 remove_uninstall() {
     rm -f ${UNINSTALL_K3S_SH}
@@ -799,10 +816,32 @@ ${LOG_FILE} {
 EOF
 }
 
+# --- runit
+create_runit_service_file() {
+    LOG_FILE=/var/log/${SYSTEM_NAME}.log
+
+    info "runit: Creating service file ${FILE_K3S_SERVICE}"
+    $SUDO mkdir -p ${FILE_K3S_SERVICE}
+    $SUDO tee ${FILE_K3S_SERVICE}/run >/dev/null << EOF
+#!/bin/sh
+set --
+[ -r ./conf ] && . ./conf
+[ -f ${FILE_K3S_ENV} ] && . ${FILE_K3S_ENV}
+exec 2>&1
+exec ${BIN_DIR}/k3s $(escape_dq "${CMD_K3S_EXEC}") 2>&1 $LOG_FILE
+EOF
+
+    $SUDO chmod 0755 ${FILE_K3S_SERVICE}/run
+
+    # TODO: Add logging?
+    # $SUDO mkdir -p ${FILE_K3S_SERVICE}/log
+}
+
 # --- write systemd or openrc service file ---
 create_service_file() {
     [ "${HAS_SYSTEMD}" = true ] && create_systemd_service_file
     [ "${HAS_OPENRC}" = true ] && create_openrc_service_file
+    [ "${HAS_RUNIT}" = true ] && create_runit_service_file
     return 0
 }
 
@@ -834,12 +873,23 @@ openrc_start() {
     $SUDO ${FILE_K3S_SERVICE} restart
 }
 
+runit_enable() {
+    info "runit: Enabling ${SYSTEM_NAME} service"
+    $SUDO ln -s ${FILE_K3S_SERVICE} /var/service >/dev/null
+}
+
+runit_start() {
+    info "runit: Starting ${SYSTEM_NAME}"
+    $SUDO ${SYSTEM_NAME} restart
+}
+
 # --- startup systemd or openrc service ---
 service_enable_and_start() {
     [ "${INSTALL_K3S_SKIP_ENABLE}" = true ] && return
 
     [ "${HAS_SYSTEMD}" = true ] && systemd_enable
     [ "${HAS_OPENRC}" = true ] && openrc_enable
+    [ "${HAS_RUNIT}" = true ] && runit_enable
 
     [ "${INSTALL_K3S_SKIP_START}" = true ] && return
 
@@ -851,6 +901,7 @@ service_enable_and_start() {
 
     [ "${HAS_SYSTEMD}" = true ] && systemd_start
     [ "${HAS_OPENRC}" = true ] && openrc_start
+    [ "${HAS_RUNIT}" = true ] && runit_start
     return 0
 }
 
