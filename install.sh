@@ -859,7 +859,7 @@ systemd_enable() {
 
 systemd_start() {
     info "systemd: Starting ${SYSTEM_NAME}"
-    $SUDO systemctl restart ${SYSTEM_NAME}
+    $SUDO systemctl restart ${SYSTEM_NAME} >/dev/null
 }
 
 # --- enable and start openrc service ---
