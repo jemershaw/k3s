@@ -859,7 +859,7 @@ systemd_enable() {
 
 systemd_start() {
     info "systemd: Starting ${SYSTEM_NAME}"
-    $SUDO systemctl restart ${SYSTEM_NAME} >/dev/null
+    $SUDO systemctl restart ${SYSTEM_NAME}
 }
 
 # --- enable and start openrc service ---
@@ -876,7 +876,6 @@ openrc_start() {
 runit_enable() {
     info "runit: Enabling ${SYSTEM_NAME} service"
     $SUDO ln -sf ${FILE_K3S_SERVICE} /var/service >/dev/null
-
     # Wait until service is started
     until test -s /var/service/${SYSTEM_NAME}/supervise/pid;
     do
@@ -887,6 +886,7 @@ runit_enable() {
 runit_start() {
     info "runit: Starting ${SYSTEM_NAME}"
     $SUDO sv restart ${SYSTEM_NAME} >/dev/null
+    info "runit: Started ${SYSTEM_NAME}"
 }
 
 # --- startup systemd or openrc service ---
