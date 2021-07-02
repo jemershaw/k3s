@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
 set -o noglob
-set -x
 
 # Usage:
 #   curl ... | ENV_VAR=... sh -
