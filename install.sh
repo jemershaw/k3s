@@ -881,6 +881,7 @@ runit_enable() {
 runit_start() {
     info "runit: Starting ${SYSTEM_NAME}"
     local try=0
+    set -x
     until $SUDO sv restart ${SYSTEM_NAME} > /dev/null;do
       try=$(expr $try + 1)
       [ "$try" -gt 5 ] && exit 1 || sleep 3
