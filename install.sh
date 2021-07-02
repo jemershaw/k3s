@@ -880,7 +880,11 @@ runit_enable() {
 
 runit_start() {
     info "runit: Starting ${SYSTEM_NAME}"
-    $SUDO sv ${SYSTEM_NAME} restart
+    local try=0
+    until $SUDO sv restart ${SYSTEM_NAME} > /dev/null;do
+      try=$(expr $try + 1)
+      [ $try > 3 ] && exit 1
+    done
 }
 
 # --- startup systemd or openrc service ---
