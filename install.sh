@@ -908,7 +908,7 @@ service_enable_and_start() {
 
     [ "${HAS_SYSTEMD}" = true ] && systemd_start
     [ "${HAS_OPENRC}" = true ] && openrc_start
-    [ "${HAS_RUNIT}" = true ] && runit_start
+    # [ "${HAS_RUNIT}" = true ] && runit_start
     return 0
 }
 
