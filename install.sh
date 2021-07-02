@@ -875,7 +875,7 @@ openrc_start() {
 
 runit_enable() {
     info "runit: Enabling ${SYSTEM_NAME} service"
-    $SUDO ln -s ${FILE_K3S_SERVICE} /var/service >/dev/null
+    $SUDO ln -sf ${FILE_K3S_SERVICE} /var/service >/dev/null
 }
 
 runit_start() {
