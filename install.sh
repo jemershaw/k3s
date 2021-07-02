@@ -885,8 +885,8 @@ runit_enable() {
 
 runit_start() {
     info "runit: Starting ${SYSTEM_NAME}"
-    $SUDO sv restart ${SYSTEM_NAME} >/dev/null
-    info "runit: Started ${SYSTEM_NAME}"
+    # $SUDO sv restart ${SYSTEM_NAME} >/dev/null
+    # info "runit: Started ${SYSTEM_NAME}"
 }
 
 # --- startup systemd or openrc service ---
